@@ -8,6 +8,8 @@ import { ProcessLyrics } from "./ProcessLyrics.ts";
 import Logger from "../Logger.ts";
 import { LocalLyricsManager } from "./manager/index.ts";
 import { LyricsQueueRetry } from "./LyricsQueueRetry.ts";
+import { fetchTranscript } from "./fetchTranscript.ts";
+import { isExperimentEnabled } from "../experiments.ts";
 import { GetExpireStore } from "../../modules/Store.ts";
 import { SLObjPack } from "../objpack.ts";
 
@@ -80,9 +82,15 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
   }
 
   const contentType = SpotifyPlayer.GetContentType();
-  if (contentType !== "track") {
+  // Podcast episodes have no lyrics, but Spotify may ship a time-synced
+  // transcript. When the experiment is on we treat episodes as a first-class
+  // source (fetched, cached and presented like Line lyrics); otherwise we keep
+  // the old "not supported" notice.
+  const isEpisode = contentType === "episode";
+  const transcriptsEnabled = isEpisode && isExperimentEnabled("podcastTranscripts");
+  if (contentType !== "track" && !transcriptsEnabled) {
     $currentlyFetching.set(false);
-    if (contentType === "episode") {
+    if (isEpisode) {
       return ["episode-track", 400];
     }
     return ["unknown-track", 400];
@@ -113,7 +121,7 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
         const savedUri = savedLyricsData.slice("NO_LYRICS:".length);
         if (savedUri === uri) {
           $currentlyFetching.set(false);
-          return ["lyrics-not-found", 404];
+          return [isEpisode ? "transcript-not-found" : "lyrics-not-found", 404];
         }
       } else {
         const lyricsData = JSON.parse(savedLyricsData);
@@ -183,6 +191,34 @@ export default async function fetchLyrics(uri: string): Promise<[object | string
     const lyricsAccessToken = storage.get("lyricsApiAccessToken") ?? Defaults.LyricsContent.api.accessToken; */
 
   try {
+    if (transcriptsEnabled) {
+      // trackId is the episode id here. Fetch Spotify's transcript, normalise it
+      // to Line lyrics and reuse the exact same process/cache/present pipeline.
+      const transcript = await fetchTranscript(trackId);
+
+      if (!transcript) {
+        HideLoaderContainer();
+        $currentlyFetching.set(false);
+        return ["transcript-not-found", 404];
+      }
+
+      await ProcessLyrics(transcript);
+
+      (transcript as any).uri = uri;
+      $currentLyricsData.set(JSON.stringify(transcript));
+
+      if (LyricsStore) {
+        try {
+          await LyricsStore.SetItem(trackId, transcript);
+        } catch (error) {
+          lyricsCacheLogger.error("Error saving transcript to cache", error);
+        }
+      }
+
+      presentLyrics(transcript);
+      return [{ ...transcript, fromCache: false }, 200];
+    }
+
     const Token = await Platform.GetSpotifyAccessToken();
 
     let status = 0;
