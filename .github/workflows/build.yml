@@ -1,0 +1,70 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - development
+      - "claude/**"
+  pull_request:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # spicetify-creator resolves the extension output through the Spicetify CLI,
+    # so the CLI must be on PATH and a config must exist for a headless build.
+    env:
+      SPICETIFY_CONFIG: ${{ github.workspace }}/.spicetify-config
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Spicetify CLI is not published as a dependency; per the Spicetify
+      # docs it is compiled from source with Go.
+      # https://spicetify.app/docs/development/compiling
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build and install the Spicetify CLI
+        run: |
+          git clone --depth 1 https://github.com/spicetify/cli "$RUNNER_TEMP/spicetify-cli"
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd "$RUNNER_TEMP/spicetify-cli" && go build -o "$RUNNER_TEMP/bin/spicetify")
+          # Put it on PATH for later steps.
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Generate a Spicetify config
+        run: |
+          # The runner has no Spotify install, but `spicetify config` still
+          # writes a default config-xpui.ini, which is all the build reads.
+          spicetify config
+          spicetify path -c
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build
+        run: bun run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spicy-lyrics-dist
+          path: dist/
+          if-no-files-found: error
