@@ -1,0 +1,88 @@
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: >-
+          Tag/name for the GitHub Release (e.g. v6.3.2). Leave empty to build
+          only, without publishing a release.
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # `contents: write` lets the release step publish an asset; runs without a
+    # release_tag input skip that step and don't use the extra permission.
+    permissions:
+      contents: write
+
+    # spicetify-creator resolves the extension output through the Spicetify CLI,
+    # so the CLI must be on PATH and a config must exist for a headless build.
+    env:
+      SPICETIFY_CONFIG: ${{ github.workspace }}/.spicetify-config
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The Spicetify CLI is not published as a dependency; per the Spicetify
+      # docs it is compiled from source with Go.
+      # https://spicetify.app/docs/development/compiling
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build and install the Spicetify CLI
+        run: |
+          git clone --depth 1 https://github.com/spicetify/cli "$RUNNER_TEMP/spicetify-cli"
+          mkdir -p "$RUNNER_TEMP/bin"
+          (cd "$RUNNER_TEMP/spicetify-cli" && go build -o "$RUNNER_TEMP/bin/spicetify")
+          # Put it on PATH for later steps.
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Generate a Spicetify config
+        run: |
+          # The runner has no Spotify install, but `spicetify config` still
+          # writes a default config-xpui.ini, which is all the build reads.
+          spicetify config
+          spicetify path -c
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build
+        run: bun run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spicy-lyrics-dist
+          path: dist/
+          if-no-files-found: error
+
+      # When a release_tag is given on manual dispatch, publish the compiled
+      # bundle as a downloadable Release asset. gh tags the run's commit; a
+      # re-run with the same tag just re-uploads the file.
+      - name: Attach bundle to GitHub Release
+        if: ${{ inputs.release_tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/spicy-lyrics.js \
+            --title "$RELEASE_TAG" \
+            --target "$GITHUB_SHA" \
+            --generate-notes \
+          || gh release upload "$RELEASE_TAG" dist/spicy-lyrics.js --clobber

@@ -179,3 +179,5 @@ src/components/cli-sync
 CHANGELOG.md
 
 VOLUME_SLIDER_PLAN.md
+# Spicetify config generated during headless CI builds
+.spicetify-config/

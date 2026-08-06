@@ -48,6 +48,13 @@ export const EXPERIMENTS = [
     default: true,
     pageClass: "Exp_NewProgressBar",
   },
+  {
+    id: "podcastTranscripts",
+    label: "Podcast Transcripts",
+    description:
+      "Show time-synced transcripts for podcast episodes, when Spotify provides them. Disable to go back to showing lyrics only.",
+    default: true,
+  },
 ] as const satisfies readonly Experiment[];
 
 /** A registry entry, narrowed to its literal `id` — what the UI iterates over. */
@@ -79,8 +86,10 @@ export function setExperiment(id: ExperimentId, value: boolean): void {
 /** Sync every experiment's `pageClass` onto the page root. Safe to call anytime. */
 export function ApplyExperimentClasses(el: HTMLElement): void {
   for (const exp of EXPERIMENTS) {
-    if (!exp.pageClass) continue;
-    el.classList.toggle(exp.pageClass, isExperimentEnabled(exp.id));
+    // `pageClass` is optional in the registry (JS-driven experiments omit it).
+    const pageClass = (exp as Experiment).pageClass;
+    if (!pageClass) continue;
+    el.classList.toggle(pageClass, isExperimentEnabled(exp.id));
   }
 }
 

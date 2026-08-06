@@ -99,6 +99,10 @@ export default async function ApplyLyrics(lyricsContent: [object | string, numbe
       noticeContent = `We currently don't have support for podcast episode lyrics`
       break;
     }
+    case "transcript-not-found": {
+      noticeContent = `We don't have a transcript for this episode`
+      break;
+    }
     case "mixed-track": {
       noticeContent = `We currently don't have support for video podcast episode lyrics`
       break;
@@ -114,7 +118,7 @@ export default async function ApplyLyrics(lyricsContent: [object | string, numbe
   if (noticeContent) {
     $currentLyricsType.set("None");
 
-    if (descriptor === "lyrics-not-found") {
+    if (descriptor === "lyrics-not-found" || descriptor === "transcript-not-found") {
       const uri = SpotifyPlayer.GetUri() ?? "";
       $currentLyricsData.set(`NO_LYRICS:${uri}`);
     } else {
