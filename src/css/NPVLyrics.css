@@ -270,7 +270,7 @@
   #SpicyLyricsPage.CardMode
   .LyricsContainer
   .LyricsContent {
-  --DefaultLyricsSize: clamp(2.2rem, calc(1cqw * 7.5), 3.6rem);
+  --DefaultLyricsSize: calc(clamp(2.2rem, calc(1cqw * 7.5), 3.6rem) * var(--LyricsUserFontScale, 1));
 }
 
 /* ─── CardMode page overrides ─────────────────────────────────────────── */
@@ -292,7 +292,7 @@
 }
 
 #SpicyLyricsNPVCard #SpicyLyricsPage.CardMode .LyricsContainer .LyricsContent {
-  --DefaultLyricsSize: clamp(1.85rem, calc(1cqw * 6), 2.8rem);
+  --DefaultLyricsSize: calc(clamp(1.85rem, calc(1cqw * 6), 2.8rem) * var(--LyricsUserFontScale, 1));
   /* Tighter fade than the default mask (solid only from 64px down), so the
      small top padding below still leaves the first line readable. */
   --ImageMask: linear-gradient(

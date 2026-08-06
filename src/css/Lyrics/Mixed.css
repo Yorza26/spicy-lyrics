@@ -570,7 +570,7 @@
 #SpicyLyricsPage.SpicyRenderer
   .LyricsContainer
   .SpicyLyricsScrollContainer[data-lyrics-type="Static"] {
-  --DefaultLyricsSize: clamp(0.8rem, calc(1cqw * 5), 2.5rem);
+  --DefaultLyricsSize: calc(clamp(0.8rem, calc(1cqw * 5), 2.5rem) * var(--LyricsUserFontScale, 1));
 }
 
 /* Popup (PiP) static lyrics: kept intentionally a touch smaller than synced
@@ -581,7 +581,7 @@
   #SpicyLyricsPage.SpicyRenderer
   .LyricsContainer
   .SpicyLyricsScrollContainer[data-lyrics-type="Static"] {
-  --DefaultLyricsSize: clamp(1.4rem, calc(1cqw * 6), 2.3rem);
+  --DefaultLyricsSize: calc(clamp(1.4rem, calc(1cqw * 6), 2.3rem) * var(--LyricsUserFontScale, 1));
 }
 
 #SpicyLyricsPage.SpicyRenderer

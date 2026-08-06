@@ -60,6 +60,10 @@ export const $simpleLyricsModeRenderingType = persistAtom<string>(
   "calculate"
 );
 export const $minimalLyricsMode = persistAtom<boolean>("minimalLyricsMode", false);
+// User-facing lyrics font-size scale, as a percentage of the built-in sizes
+// (100 = default). Applied as the --LyricsUserFontScale CSS variable on
+// #SpicyLyricsPage, which every --DefaultLyricsSize definition multiplies in.
+export const $lyricsFontScale = persistAtom<number>("lyricsFontScale", 100);
 // Tinted box drawn behind a lyrics line while the pointer is over it.
 export const $lineHoverBackground = persistAtom<boolean>("lineHoverBackground", true);
 export const $skipSpicyFont = persistAtom<boolean>("skipSpicyFont", false);

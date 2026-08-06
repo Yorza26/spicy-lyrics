@@ -23,6 +23,7 @@ import {
   $currentLyricsData,
   $lineHoverBackground,
   $lyricsContainerExists,
+  $lyricsFontScale,
   $minimalLyricsMode,
   $showVolumeSlider,
   $simpleLyricsMode,
@@ -116,6 +117,21 @@ export const GetPageRoot = () =>
 let PageResizeListener: ResizeObserver | null = null;
 export let PageContainer: HTMLElement | null = null;
 export let IsCardMode = false;
+
+/**
+ * Push the user's lyrics font-size preference onto a page element as the
+ * --LyricsUserFontScale CSS variable (a unitless multiplier). Every
+ * --DefaultLyricsSize definition multiplies this in, so 100% leaves the tuned
+ * defaults untouched.
+ */
+function ApplyLyricsFontScale(elem: HTMLElement | null): void {
+  if (!elem) return;
+  const scale = $lyricsFontScale.get() / 100;
+  elem.style.setProperty("--LyricsUserFontScale", String(scale));
+}
+
+// Live-update the font size on the open page (and NPV card) when the slider moves.
+$lyricsFontScale.listen(() => ApplyLyricsFontScale(PageContainer));
 
 async function OpenPage(
   AppendTo: HTMLElement | undefined = undefined,
@@ -237,6 +253,8 @@ async function OpenPage(
     elem.classList.add("NoLineHoverBackground");
   }
 
+  ApplyLyricsFontScale(elem);
+
   // Gates the raised .PlaybackControls / tightened .Heart offsets that make room for
   // the volume band — without it, turning the setting off would leave a gap.
   if ($showVolumeSlider.get()) {
@@ -321,7 +339,9 @@ async function OpenPage(
   PageView.IsOpened = true;
 
   if (IsPIP) {
-    elem?.classList.add("ForcedCompactMode");
+    // PopupLyricsMode strips the popup down to just the lyrics + close button
+    // (see ContentBox.css) — the NowBar chrome is hidden there.
+    elem?.classList.add("ForcedCompactMode", "PopupLyricsMode");
     OpenNowBar(true);
     EnableCompactMode();
   }
