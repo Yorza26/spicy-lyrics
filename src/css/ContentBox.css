@@ -1672,11 +1672,11 @@
 #SpicyLyricsPage.ForcedCompactMode.CompactifyEnabledCompactMode
   .LyricsContainer
   .LyricsContent {
-  --DefaultLyricsSize: clamp(3rem, calc(1cqw * 7), 4rem);
+  --DefaultLyricsSize: calc(clamp(3rem, calc(1cqw * 7), 4rem) * var(--LyricsUserFontScale, 1));
 }
 
 #SpicyLyricsPage.TippyMode .LyricsContainer .LyricsContent {
-  --DefaultLyricsSize: clamp(2.5rem, calc(1cqw * 7), 3.5rem);
+  --DefaultLyricsSize: calc(clamp(2.5rem, calc(1cqw * 7), 3.5rem) * var(--LyricsUserFontScale, 1));
 }
 
 #SpicyLyricsPage.Fullscreen.CompactMode.SpicyRenderer:has(.MediaBox:hover)
@@ -2114,4 +2114,27 @@
 
 #SpicyLyricsPage .MediaImageContainer .fi_FromImage.MB_anim_fimg::before {
   opacity: 1;
+}
+/* ─── Popup Lyrics Mode ──────────────────────────────────────────────────────
+   The Picture-in-Picture popup is stripped down to just the lyrics (plus the
+   floating close button injected into the PiP document). The whole NowBar —
+   cover, title/artist and playback controls — and the (empty) ViewControls are
+   hidden so the lyrics get the entire window. */
+#SpicyLyricsPage.PopupLyricsMode .ContentBox .NowBar,
+#SpicyLyricsPage.PopupLyricsMode .ContentBox .ViewControls {
+  display: none !important;
+}
+
+/* No NowBar band to clear, so the lyrics fill from the top. */
+#SpicyLyricsPage.PopupLyricsMode .ContentBox .LyricsContainer {
+  margin-top: 0 !important;
+}
+
+/* Keep the first line clear of the top drag region and close button. */
+#SpicyLyricsPage.PopupLyricsMode
+  .LyricsContainer
+  .LyricsContent
+  .simplebar-content-wrapper
+  .SpicyLyricsScrollContainer {
+  padding-top: 44px !important;
 }

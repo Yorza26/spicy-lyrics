@@ -145,11 +145,49 @@ const OpenPopupLyricsFlow = async () => {
       inset: 0;
       width: 100cqw;
     }
+    .spicy-pip-close {
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 20;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.35);
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      opacity: 0.55;
+      transition: opacity 0.2s ease, background 0.2s ease;
+    }
+    body:hover .spicy-pip-close,
+    .spicy-pip-close:focus-visible {
+      opacity: 1;
+    }
+    .spicy-pip-close:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.6);
+    }
+    .spicy-pip-close svg {
+      width: 14px;
+      height: 14px;
+    }
   `.replace(/\s+/g, ' ').replace(/;\s*/g, ';').replace(/{\s*/g, '{').replace(/\s*}/g, '}').trim();
 
   currentPipWindow.document.head.appendChild(additionalStylingElement);
 
-  currentPipWindow.document.body.innerHTML = `<div class="app-drag-region"></div><div class="spicy-pip-wrapper"></div>`;
+  currentPipWindow.document.body.innerHTML = `<div class="app-drag-region"></div><button class="spicy-pip-close" type="button" aria-label="Close popup lyrics" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="spicy-pip-wrapper"></div>`;
+
+  const pipCloseButton = currentPipWindow.document.body.querySelector(".spicy-pip-close") as HTMLButtonElement | null;
+  pipCloseButton?.addEventListener("click", () => {
+    ClosePopupLyrics();
+  });
 
   const pipWrapper = currentPipWindow.document.body.querySelector(".spicy-pip-wrapper") as HTMLElement;
 
