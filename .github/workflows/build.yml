@@ -6,6 +6,8 @@ on:
       - main
       - development
       - "claude/**"
+    tags:
+      - "v*"
   pull_request:
     branches:
       - main
@@ -15,6 +17,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # `contents: write` lets the release step publish an asset on tag pushes;
+    # it is a no-op for branch/PR runs, which don't reach that step.
+    permissions:
+      contents: write
 
     # spicetify-creator resolves the extension output through the Spicetify CLI,
     # so the CLI must be on PATH and a config must exist for a headless build.
@@ -68,3 +75,15 @@ jobs:
           name: spicy-lyrics-dist
           path: dist/
           if-no-files-found: error
+
+      # On a version tag (e.g. v6.3.1), publish the compiled bundle as a
+      # downloadable Release asset. Re-running the tag re-uploads the file.
+      - name: Attach bundle to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/spicy-lyrics.js \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+          || gh release upload "$GITHUB_REF_NAME" dist/spicy-lyrics.js --clobber
