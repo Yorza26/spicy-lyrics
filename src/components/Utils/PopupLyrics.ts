@@ -1,5 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
+import Global from "../Global/Global.ts";
 import Session from "../Global/Session.ts";
+import { SpotifyPlayer } from "../Global/SpotifyPlayer.ts";
+import { Icons } from "../Styling/Icons.ts";
 import PageView from "../Pages/PageView.ts";
 import Fullscreen from "./Fullscreen.ts";
 import { NPVCardOwnsPage, DeRenderNPVCard, RequestNPVCardEvaluate } from "./NPVLyrics.ts";
@@ -13,6 +16,8 @@ export let IsPIPOpening = false;
 
 let currentPipWindow = null;
 let pipPageHideHandler: ((event: Event) => void) | null = null;
+// EventManager id for the popup play/pause button's state sync, cleared on close.
+let pipPlayPauseListenerId: number | null = null;
 
 export const OpenPopupLyrics = async () => {
   IsPIPOpening = true;
@@ -145,12 +150,12 @@ const OpenPopupLyricsFlow = async () => {
       inset: 0;
       width: 100cqw;
     }
-    .spicy-pip-close {
+    .spicy-pip-close,
+    .spicy-pip-playpause {
       -webkit-app-region: no-drag;
       app-region: no-drag;
       position: fixed;
       top: 8px;
-      right: 8px;
       z-index: 20;
       width: 28px;
       height: 28px;
@@ -166,11 +171,20 @@ const OpenPopupLyricsFlow = async () => {
       opacity: 0.55;
       transition: opacity 0.2s ease, background 0.2s ease;
     }
+    .spicy-pip-close {
+      right: 8px;
+    }
+    .spicy-pip-playpause {
+      left: 8px;
+    }
     body:hover .spicy-pip-close,
-    .spicy-pip-close:focus-visible {
+    body:hover .spicy-pip-playpause,
+    .spicy-pip-close:focus-visible,
+    .spicy-pip-playpause:focus-visible {
       opacity: 1;
     }
-    .spicy-pip-close:hover {
+    .spicy-pip-close:hover,
+    .spicy-pip-playpause:hover {
       opacity: 1;
       background: rgba(0, 0, 0, 0.6);
     }
@@ -178,16 +192,42 @@ const OpenPopupLyricsFlow = async () => {
       width: 14px;
       height: 14px;
     }
+    .spicy-pip-playpause svg {
+      width: 13px;
+      height: 13px;
+      fill: currentColor;
+    }
   `.replace(/\s+/g, ' ').replace(/;\s*/g, ';').replace(/{\s*/g, '{').replace(/\s*}/g, '}').trim();
 
   currentPipWindow.document.head.appendChild(additionalStylingElement);
 
-  currentPipWindow.document.body.innerHTML = `<div class="app-drag-region"></div><button class="spicy-pip-close" type="button" aria-label="Close popup lyrics" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="spicy-pip-wrapper"></div>`;
+  currentPipWindow.document.body.innerHTML = `<div class="app-drag-region"></div><button class="spicy-pip-playpause" type="button" aria-label="Play/Pause" title="Play/Pause"></button><button class="spicy-pip-close" type="button" aria-label="Close popup lyrics" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button><div class="spicy-pip-wrapper"></div>`;
 
   const pipCloseButton = currentPipWindow.document.body.querySelector(".spicy-pip-close") as HTMLButtonElement | null;
   pipCloseButton?.addEventListener("click", () => {
     ClosePopupLyrics();
   });
+
+  // Top-left play/pause button — same size/placement as the close button. Its
+  // icon mirrors the current playback state and stays in sync via the
+  // playback:playpause event (cleaned up in ClosePopupLyrics).
+  const pipPlayPauseButton = currentPipWindow.document.body.querySelector(".spicy-pip-playpause") as HTMLButtonElement | null;
+  const setPipPlayPauseIcon = (isPlaying: boolean) => {
+    if (!pipPlayPauseButton) return;
+    pipPlayPauseButton.classList.toggle("Playing", isPlaying);
+    pipPlayPauseButton.classList.toggle("Paused", !isPlaying);
+    pipPlayPauseButton.innerHTML = isPlaying ? Icons.Pause : Icons.Play;
+  };
+  setPipPlayPauseIcon(Boolean(Spicetify?.Player?.isPlaying?.()));
+  pipPlayPauseButton?.addEventListener("click", () => {
+    SpotifyPlayer.TogglePlayState();
+  });
+  pipPlayPauseListenerId = Global.Event.listen(
+    "playback:playpause",
+    (e: { data: { isPaused: boolean } }) => {
+      setPipPlayPauseIcon(!e?.data?.isPaused);
+    }
+  );
 
   const pipWrapper = currentPipWindow.document.body.querySelector(".spicy-pip-wrapper") as HTMLElement;
 
@@ -213,6 +253,12 @@ export const ClosePopupLyrics = async () => {
 
   await Fullscreen.Close(true)
   await PageView.Destroy();
+
+  // Stop syncing the play/pause button before the window goes away.
+  if (pipPlayPauseListenerId !== null) {
+    Global.Event.unListen(pipPlayPauseListenerId);
+    pipPlayPauseListenerId = null;
+  }
 
   // Remove the event listener before closing the window
   if (pipPageHideHandler) {
